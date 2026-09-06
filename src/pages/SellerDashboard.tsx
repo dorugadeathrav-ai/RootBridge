@@ -1,0 +1,21 @@
+import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import LogoutButton from '../components/LogoutButton'
+import { useAuth } from '../context/AuthContext'
+import { getRegisteredUser } from '../utils/auth'
+import { deleteProduct, getProducts } from '../utils/products'
+import type { SellerProduct } from '../types'
+
+function StatCard({ title, value }: { title: string; value: string | number }) { return <div className="rounded bg-white p-4 shadow-sm"><div className="text-sm text-slate-500">{title}</div><div className="text-2xl font-semibold">{value}</div></div> }
+
+export default function SellerDashboard() {
+  const { currentUser } = useAuth()
+  const navigate = useNavigate()
+  const seller = currentUser ? getRegisteredUser(currentUser.id) : null
+  const profile = seller?.profile as { phone?: string; businessName?: string; businessDescription?: string; location?: { state: string; district: string; taluka: string; villageCity: string; pinCode: string } } | undefined
+  const [products, setProducts] = useState<SellerProduct[]>(() => currentUser ? getProducts().filter(product => product.sellerId === currentUser.id) : [])
+  const available = products.filter(product => product.status === 'available').length
+  function removeProduct(product: SellerProduct) { if (window.confirm('Are you sure you want to delete this product?')) { deleteProduct(product.id); setProducts(previous => previous.filter(item => item.id !== product.id)) } }
+  const location = profile?.location
+  return <div className="min-h-screen bg-gray-50"><div className="mx-auto max-w-7xl p-6"><div className="flex items-center justify-between"><div><h1 className="text-2xl font-semibold">Welcome to RootBridge, {seller?.name ?? currentUser?.name}</h1><p className="text-slate-600">{profile?.businessName || 'Your seller dashboard'}</p></div><LogoutButton /></div><div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3"><StatCard title="Total Products" value={products.length} /><StatCard title="Available Products" value={available} /><StatCard title="Out of Stock Products" value={products.length - available} /></div><div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-4"><aside className="rounded bg-white p-4 shadow-sm"><ul className="space-y-3 text-sm"><li className="font-medium">Dashboard</li><li>My Products</li><li><button onClick={() => navigate('/seller/products/new')} className="text-emerald-700">Add Product</button></li><li>Profile</li><li className="text-red-600"><LogoutButton /></li></ul>{location && <div className="mt-6 border-t pt-4 text-xs text-slate-500"><p>{location.villageCity}, {location.taluka}</p><p>{location.district}, {location.state}</p><p>{location.pinCode}</p></div>}</aside><main className="md:col-span-3"><div className="flex items-center justify-between"><h2 className="text-xl font-semibold">My Products</h2><button onClick={() => navigate('/seller/products/new')} className="rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">+ Add New Product</button></div><div className="mt-4 space-y-3">{products.length === 0 && <div className="rounded bg-white p-6 text-slate-500 shadow-sm">No products added yet.</div>}{products.map(product => <article key={product.id} className="flex flex-col gap-4 rounded bg-white p-4 shadow-sm sm:flex-row sm:items-center"><div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded bg-emerald-50 text-sm text-emerald-600">{product.images[0] ? <img src={product.images[0]} alt={product.name} className="h-full w-full object-cover" /> : 'No image'}</div><div className="flex-1"><h3 className="font-semibold">{product.name}</h3><p className="text-sm text-slate-500">{product.category} · ₹{product.price.toFixed(2)} / {product.unit}</p><p className="text-sm">Stock: {product.quantity} · <span className={product.status === 'available' ? 'text-emerald-700' : 'text-red-600'}>{product.status === 'available' ? 'Available' : 'Out of Stock'}</span></p></div><div className="flex gap-3 text-sm"><button onClick={() => navigate('/seller/products/edit', { state: { product } })} className="text-emerald-700">Edit</button><button onClick={() => removeProduct(product)} className="text-red-600">Delete</button></div></article>)}</div></main></div></div></div>
+}
